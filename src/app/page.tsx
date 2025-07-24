@@ -32,7 +32,7 @@ export default function Home() {
   const [suiPrice, setSuiPrice] = useState<PriceData>({ price: 0, direction: 'none' });
   const [ratio, setRatio] = useState<number>(0);
   const [lastRatio, setLastRatio] = useState<number | null>(null);
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState('light');
   const [minRange, setMinRange] = useState("0.000000");
   const [maxRange, setMaxRange] = useState("0.000000");
   const [activeMinRange, setActiveMinRange] = useState("0.000000");
@@ -68,7 +68,7 @@ export default function Home() {
     const storedActiveMaxRange = localStorage.getItem('activeMaxRange') || "0.000000";
     setActiveMaxRange(storedActiveMaxRange);
     
-    const storedNotificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true';
+    const storedNotificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true' || false;
     setNotificationsEnabled(storedNotificationsEnabled);
 
   }, []);
@@ -279,7 +279,7 @@ export default function Home() {
             </div>
         </div>
         <div className="flex w-full flex-grow items-center gap-2 md:w-auto md:flex-grow-0 md:ml-4">
-            <div className="relative w-full md:w-60">
+            <div className="relative w-full md:w-48">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                     id="email-header" 
@@ -307,8 +307,8 @@ export default function Home() {
         <div className="mx-auto max-w-7xl">
           <section className="mb-8">
             <h2 className="text-xl font-semibold text-foreground/80 mb-4">Live Prices</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-2">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
                 <RatioCard
                   ratio={ratio}
                   direction={ratioDirection}
@@ -373,4 +373,3 @@ export default function Home() {
       </AlertDialog>
     </div>
   );
-}
