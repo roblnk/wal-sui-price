@@ -81,19 +81,19 @@ export default function Home() {
   };
   
   const handleUpdateEmail = () => {
-    if(!email) {
-        toast({
-            title: "Error",
-            description: "Please enter an email address.",
-            variant: "destructive"
-        });
-        return;
+    if (!email) {
+      toast({
+        title: "Error",
+        description: "Please enter an email address.",
+        variant: "destructive"
+      });
+      return;
     }
     setNotificationEmail(email);
     localStorage.setItem('notificationEmail', email);
     toast({
-        title: "Success",
-        description: `Notification email updated to ${email}.`,
+      title: "Success",
+      description: `Notification email updated to ${email}.`,
     });
   };
 
@@ -102,12 +102,12 @@ export default function Home() {
     const max = parseFloat(maxRange);
 
     if (min >= max) {
-        toast({
-            title: "Error",
-            description: "The max range must be greater than the min range.",
-            variant: "destructive"
-        });
-        return;
+      toast({
+        title: "Error",
+        description: "The max range must be greater than the min range.",
+        variant: "destructive"
+      });
+      return;
     }
 
     setActiveMinRange(minRange);
@@ -116,8 +116,8 @@ export default function Home() {
     localStorage.setItem('activeMaxRange', maxRange);
 
     toast({
-        title: "Success",
-        description: `Notification range updated.`,
+      title: "Success",
+      description: `Notification range updated.`,
     });
   };
 
@@ -132,8 +132,8 @@ export default function Home() {
     localStorage.setItem('activeMaxRange', '0.000000');
     setShowEraseAlert(false);
     toast({
-        title: "Success",
-        description: "Notification range has been erased.",
+      title: "Success",
+      description: "Notification range has been erased.",
     });
   };
 
@@ -215,29 +215,29 @@ export default function Home() {
 
   const sendInRangeNotification = useCallback(async () => {
     if (notificationEmail) {
-        try {
-            await sendInRangeEmail({
-                to: notificationEmail,
-                ratio,
-                minRange: parseFloat(activeMinRange),
-                maxRange: parseFloat(activeMaxRange)
-            });
-            toast({
-                title: 'In Range Alert',
-                description: `The WAL/SUI ratio is back in range. A notification has been sent to ${notificationEmail}.`,
-                variant: 'default',
-            });
-        } catch (error) {
-            console.error("Failed to send in-range email:", error);
-            toast({
-                title: 'In Range Alert',
-                description: `The WAL/SUI ratio is back in range, but we failed to send an email to ${notificationEmail}.`,
-                variant: 'destructive',
-            });
-        }
+      try {
+        await sendInRangeEmail({
+          to: notificationEmail,
+          ratio,
+          minRange: parseFloat(activeMinRange),
+          maxRange: parseFloat(activeMaxRange)
+        });
+        toast({
+          title: 'In Range Alert',
+          description: `The WAL/SUI ratio is back in range. A notification has been sent to ${notificationEmail}.`,
+          variant: 'default',
+        });
+      } catch (error) {
+        console.error("Failed to send in-range email:", error);
+        toast({
+          title: 'In Range Alert',
+          description: `The WAL/SUI ratio is back in range, but we failed to send an email to ${notificationEmail}.`,
+          variant: 'destructive',
+        });
+      }
     }
     setNotificationSent(false);
-}, [notificationEmail, ratio, activeMinRange, activeMaxRange, toast]);
+  }, [notificationEmail, ratio, activeMinRange, activeMaxRange, toast]);
 
   useEffect(() => {
     const min = parseFloat(activeMinRange);
@@ -249,11 +249,11 @@ export default function Home() {
     if (notificationsEnabled) {
       if (isOutOfRange) {
         if (!notificationSent) {
-            sendOutOfRangeNotification();
+          sendOutOfRangeNotification();
         }
       } else if (isInRange) {
         if (notificationSent) {
-            sendInRangeNotification();
+          sendInRangeNotification();
         }
       }
     }
@@ -266,41 +266,41 @@ export default function Home() {
     <div className="flex min-h-screen w-full flex-col">
       <header className="sticky top-0 z-10 flex h-auto flex-wrap items-center gap-4 border-b bg-background/80 px-4 py-4 backdrop-blur-sm md:h-16 md:flex-nowrap md:px-6">
         <div className="flex w-full items-center justify-between md:w-auto">
-            <div className="flex items-center gap-2">
-                <TrendingUp className="h-6 w-6 text-primary" />
-                <h1 className="text-2xl font-bold tracking-tight">Turbo Tracker</h1>
-            </div>
-            <div className="md:hidden">
-                <Button variant="ghost" size="icon" onClick={toggleTheme}>
-                    <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                    <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                    <span className="sr-only">Toggle theme</span>
-                </Button>
-            </div>
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold tracking-tight">Turbo Tracker</h1>
+          </div>
+          <div className="md:hidden">
+            <Button variant="ghost" size="icon" onClick={toggleTheme}>
+              <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <span className="sr-only">Toggle theme</span>
+            </Button>
+          </div>
         </div>
         <div className="flex w-full flex-grow items-center gap-2 md:w-auto md:flex-grow-0 md:ml-4">
-            <div className="relative w-full md:w-48">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    id="email-header" 
-                    type="email" 
-                    placeholder="Enter your email here!" 
-                    className="pl-9 h-8"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      localStorage.setItem('email', e.target.value);
-                    }}
-                />
-            </div>
-            <Button size="sm" className="h-8" onClick={handleUpdateEmail}>Update</Button>
+          <div className="relative w-full md:w-48">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="email-header"
+              type="email"
+              placeholder="Enter your email here!"
+              className="pl-9 h-8"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                localStorage.setItem('email', e.target.value);
+              }}
+            />
+          </div>
+          <Button size="sm" className="h-8" onClick={handleUpdateEmail}>Update</Button>
         </div>
         <div className="ml-auto hidden md:block">
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
-                <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                <span className="sr-only">Toggle theme</span>
-            </Button>
+          <Button variant="ghost" size="icon" onClick={toggleTheme}>
+            <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
         </div>
       </header>
       <main className="flex-1 p-4 md:p-8 lg:p-10">
@@ -335,13 +335,13 @@ export default function Home() {
                 />
               </div>
               <div className="flex flex-col gap-6">
-                <PriceCard 
+                <PriceCard
                   tokenName="Walrus"
                   tokenSymbol="WAL"
                   price={walPrice.price}
                   direction={walPrice.direction}
                 />
-                <PriceCard 
+                <PriceCard
                   tokenName="Sui"
                   tokenSymbol="SUI"
                   price={suiPrice.price}
@@ -373,3 +373,4 @@ export default function Home() {
       </AlertDialog>
     </div>
   );
+}
