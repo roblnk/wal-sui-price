@@ -13,7 +13,7 @@ const BybitTickerSchema = z.object({
 
 export async function getWalPrice(): Promise<number> {
     try {
-        const response = await fetch(process.env.BYBIT_WAL_API_URL!, { cache: 'no-store' });
+        const response = await fetch(process.env.NEXT_PUBLIC_BYBIT_WAL_API_URL!, { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`Failed to fetch price for WAL from Bybit`);
         }
@@ -31,7 +31,7 @@ export async function getWalPrice(): Promise<number> {
 
 export async function getSuiPrice(): Promise<number> {
     try {
-        const response = await fetch(process.env.BYBIT_SUI_API_URL!, { cache: 'no-store' });
+        const response = await fetch(process.env.NEXT_PUBLIC_BYBIT_SUI_API_URL!, { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`Failed to fetch price for SUI from Bybit`);
         }
