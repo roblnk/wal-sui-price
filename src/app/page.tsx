@@ -18,7 +18,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { getWalPrice, getSuiPrice } from '@/services/price-feed';
 import { sendOutOfRangeEmail, sendInRangeEmail } from '@/ai/flows/send-email-flow';
 
 
@@ -43,6 +42,38 @@ export default function Home() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const { toast } = useToast();
   const [lastNotifiedState, setLastNotifiedState] = useState<'in-range' | 'out-of-range' | null>(null);
+
+  const fetchPrices = useCallback(async () => {
+    try {
+      const response = await fetch('/api/prices');
+      if (!response.ok) {
+        throw new Error('Failed to fetch prices');
+      }
+      const data = await response.json();
+      
+      setWalPrice(prev => ({
+        price: data.walPrice,
+        direction: data.walPrice > prev.price ? 'up' : 'down'
+      }));
+
+      setSuiPrice(prev => ({
+        price: data.suiPrice,
+        direction: data.suiPrice > prev.price ? 'up' : 'down'
+      }));
+
+    } catch (error) {
+      console.error("Failed to fetch prices:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [fetchPrices]);
 
 
   useEffect(() => {
@@ -143,53 +174,14 @@ export default function Home() {
     });
   };
 
-  useEffect(() => {
-    const fetchWalPrice = async () => {
-      try {
-        const price = await getWalPrice();
-        setWalPrice(prev => ({
-          price: price,
-          direction: price > prev.price ? 'up' : 'down'
-        }));
-      } catch (error) {
-        console.error("Failed to fetch WAL price:", error);
-      }
-    };
-
-    const fetchSuiPrice = async () => {
-      try {
-        const price = await getSuiPrice();
-        setSuiPrice(prev => ({
-          price: price,
-          direction: price > prev.price ? 'up' : 'down'
-        }));
-      } catch (error) {
-        console.error("Failed to fetch SUI price:", error);
-      }
-    };
-
-    fetchWalPrice();
-    fetchSuiPrice();
-    const walInterval = setInterval(fetchWalPrice, 1000);
-    const suiInterval = setInterval(fetchSuiPrice, 1000);
-
-    return () => {
-      clearInterval(walInterval);
-      clearInterval(suiInterval);
-    };
-  }, []);
-
   const checkPriceAndNotify = useCallback(async () => {
     if (!notificationsEnabled || !notificationEmail || !activeMinRange || !activeMaxRange) {
       return;
     }
 
     try {
-      const walPriceVal = await getWalPrice();
-      const suiPriceVal = await getSuiPrice();
-        
-      if (walPriceVal > 0 && suiPriceVal > 0) {
-        const currentRatio = walPriceVal / suiPriceVal;
+      if (walPrice.price > 0 && suiPrice.price > 0) {
+        const currentRatio = walPrice.price / suiPrice.price;
         const min = parseFloat(activeMinRange);
         const max = parseFloat(activeMaxRange);
 
@@ -240,7 +232,7 @@ export default function Home() {
         variant: 'destructive',
       });
     }
-  }, [lastNotifiedState, toast, notificationsEnabled, notificationEmail, activeMinRange, activeMaxRange]);
+  }, [lastNotifiedState, toast, notificationsEnabled, notificationEmail, activeMinRange, activeMaxRange, walPrice, suiPrice]);
 
   useEffect(() => {
     if (walPrice.price > 0 && suiPrice.price > 0) {
