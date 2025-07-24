@@ -1,72 +1,48 @@
-
 "use server";
 
 import { z } from 'zod';
 
-const BinanceTickerSchema = z.object({
-    symbol: z.string(),
-    price: z.string(),
+const BybitTickerSchema = z.object({
+    result: z.object({
+        list: z.array(z.object({
+            lastPrice: z.string(),
+        })),
+    }),
 });
-
-const fetchOptions: RequestInit = {
-    // Vercel automatically caches fetch requests, this explicitly disables it
-    cache: 'no-store',
-    headers: {
-        // Some APIs block requests without a User-Agent
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    },
-};
 
 
 export async function getWalPrice(): Promise<number> {
     try {
-        // WAL is not on Binance, so we'll have to keep using Bybit and hope the User-Agent helps.
-        // If this continues to fail, a different source for WAL will be needed.
-        const response = await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=WALUSDT`, fetchOptions);
-
+        const response = await fetch(process.env.BYBIT_WAL_API_URL!, { cache: 'no-store' });
         if (!response.ok) {
-            throw new Error(`Failed to fetch WAL price from Bybit. Status: ${response.status} ${response.statusText}`);
+            throw new Error(`Failed to fetch price for WAL from Bybit`);
         }
-        
-        const BybitTickerSchema = z.object({
-            retCode: z.number(),
-            retMsg: z.string(),
-            result: z.object({
-                list: z.array(z.object({
-                    lastPrice: z.string(),
-                })).optional(),
-            }),
-        });
-        
         const data = await response.json();
         const parsedData = BybitTickerSchema.parse(data);
-
-        if (parsedData.retCode !== 0 || !parsedData.result.list || parsedData.result.list.length === 0) {
-            console.error('Bybit API error for WAL:', parsedData.retMsg);
-            throw new Error(`Bybit API returned an error for WAL: ${parsedData.retMsg}`);
+        if (parsedData.result.list.length > 0) {
+            return parseFloat(parsedData.result.list[0].lastPrice);
         }
-
-        return parseFloat(parsedData.result.list[0].lastPrice);
+        throw new Error('WAL price not found in Bybit response');
     } catch (error) {
-        console.error(`Error getting WAL price:`, error);
+        console.error(`Error fetching price for WAL:`, error);
         throw error;
     }
 }
 
 export async function getSuiPrice(): Promise<number> {
     try {
-        const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=SUIUSDT`, fetchOptions);
-
+        const response = await fetch(process.env.BYBIT_SUI_API_URL!, { cache: 'no-store' });
         if (!response.ok) {
-            throw new Error(`Failed to fetch SUI price from Binance. Status: ${response.status} ${response.statusText}`);
+            throw new Error(`Failed to fetch price for SUI from Bybit`);
         }
-        
         const data = await response.json();
-        const parsedData = BinanceTickerSchema.parse(data);
-
-        return parseFloat(parsedData.price);
+        const parsedData = BybitTickerSchema.parse(data);
+        if (parsedData.result.list.length > 0) {
+            return parseFloat(parsedData.result.list[0].lastPrice);
+        }
+        throw new Error('SUI price not found in Bybit response');
     } catch (error) {
-        console.error(`Error getting SUI price:`, error);
+        console.error(`Error fetching price for SUI:`, error);
         throw error;
     }
 }
