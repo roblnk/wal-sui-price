@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -17,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { sendOutOfRangeEmail } from '@/ai/flows/send-email-flow';
+import { sendOutOfRangeEmail, sendInRangeEmail } from '@/ai/flows/send-email-flow';
 import { getWalPrice, getSuiPrice } from '@/services/price-feed';
 
 
@@ -31,7 +32,7 @@ export default function Home() {
   const [suiPrice, setSuiPrice] = useState<PriceData>({ price: 0, direction: 'none' });
   const [ratio, setRatio] = useState<number>(0);
   const [lastRatio, setLastRatio] = useState<number | null>(null);
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState('dark');
   const [minRange, setMinRange] = useState("0.000000");
   const [maxRange, setMaxRange] = useState("0.000000");
   const [activeMinRange, setActiveMinRange] = useState("0.000000");
@@ -43,9 +44,39 @@ export default function Home() {
   const [notificationSent, setNotificationSent] = useState(false);
   const { toast } = useToast();
 
+  useEffect(() => {
+    // This effect runs once on component mount on the client side.
+    const storedTheme = localStorage.getItem('theme') || 'dark';
+    setTheme(storedTheme);
+    document.documentElement.classList.toggle('dark', storedTheme === 'dark');
+
+    const storedEmail = localStorage.getItem('email') || "";
+    setEmail(storedEmail);
+
+    const storedNotificationEmail = localStorage.getItem('notificationEmail') || "";
+    setNotificationEmail(storedNotificationEmail);
+
+    const storedMinRange = localStorage.getItem('minRange') || "0.000000";
+    setMinRange(storedMinRange);
+
+    const storedMaxRange = localStorage.getItem('maxRange') || "0.000000";
+    setMaxRange(storedMaxRange);
+
+    const storedActiveMinRange = localStorage.getItem('activeMinRange') || "0.000000";
+    setActiveMinRange(storedActiveMinRange);
+
+    const storedActiveMaxRange = localStorage.getItem('activeMaxRange') || "0.000000";
+    setActiveMaxRange(storedActiveMaxRange);
+    
+    const storedNotificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true';
+    setNotificationsEnabled(storedNotificationsEnabled);
+
+  }, []);
+
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
     document.documentElement.classList.toggle('dark', newTheme === 'dark');
   };
   
@@ -59,6 +90,7 @@ export default function Home() {
         return;
     }
     setNotificationEmail(email);
+    localStorage.setItem('notificationEmail', email);
     toast({
         title: "Success",
         description: `Notification email updated to ${email}.`,
@@ -79,7 +111,9 @@ export default function Home() {
     }
 
     setActiveMinRange(minRange);
-    setActiveMaxRange(maxRange);
+    localStorage.setItem('activeMinRange', minRange);
+    setMaxRange(maxRange);
+    localStorage.setItem('activeMaxRange', maxRange);
 
     toast({
         title: "Success",
@@ -89,9 +123,13 @@ export default function Home() {
 
   const handleEraseRange = () => {
     setMinRange("0.000000");
+    localStorage.setItem('minRange', '0.000000');
     setMaxRange("0.000000");
+    localStorage.setItem('maxRange', '0.000000');
     setActiveMinRange("0.000000");
+    localStorage.setItem('activeMinRange', '0.000000');
     setActiveMaxRange("0.000000");
+    localStorage.setItem('activeMaxRange', '0.000000');
     setShowEraseAlert(false);
     toast({
         title: "Success",
@@ -143,7 +181,7 @@ export default function Home() {
     }
   }, [walPrice, suiPrice, ratio]);
 
-  const sendNotification = useCallback(async () => {
+  const sendOutOfRangeNotification = useCallback(async () => {
     if (!notificationEmail) {
       toast({
         title: 'Out of Range Alert',
@@ -175,6 +213,32 @@ export default function Home() {
     setNotificationSent(true);
   }, [notificationEmail, ratio, activeMinRange, activeMaxRange, toast]);
 
+  const sendInRangeNotification = useCallback(async () => {
+    if (notificationEmail) {
+        try {
+            await sendInRangeEmail({
+                to: notificationEmail,
+                ratio,
+                minRange: parseFloat(activeMinRange),
+                maxRange: parseFloat(activeMaxRange)
+            });
+            toast({
+                title: 'In Range Alert',
+                description: `The WAL/SUI ratio is back in range. A notification has been sent to ${notificationEmail}.`,
+                variant: 'default',
+            });
+        } catch (error) {
+            console.error("Failed to send in-range email:", error);
+            toast({
+                title: 'In Range Alert',
+                description: `The WAL/SUI ratio is back in range, but we failed to send an email to ${notificationEmail}.`,
+                variant: 'destructive',
+            });
+        }
+    }
+    setNotificationSent(false);
+}, [notificationEmail, ratio, activeMinRange, activeMaxRange, toast]);
+
   useEffect(() => {
     const min = parseFloat(activeMinRange);
     const max = parseFloat(activeMaxRange);
@@ -185,28 +249,37 @@ export default function Home() {
     if (notificationsEnabled) {
       if (isOutOfRange) {
         if (!notificationSent) {
-          sendNotification();
+            sendOutOfRangeNotification();
         }
       } else if (isInRange) {
         if (notificationSent) {
-          setNotificationSent(false);
+            sendInRangeNotification();
         }
       }
     }
-  }, [ratio, activeMinRange, activeMaxRange, notificationsEnabled, notificationSent, sendNotification]);
+  }, [ratio, activeMinRange, activeMaxRange, notificationsEnabled, notificationSent, sendOutOfRangeNotification, sendInRangeNotification]);
 
 
   const ratioDirection = lastRatio ? (ratio > lastRatio ? 'up' : 'down') : 'none';
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 md:px-6">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight">Turbo Tracker</h1>
+      <header className="sticky top-0 z-10 flex h-auto flex-wrap items-center gap-4 border-b bg-background/80 px-4 py-4 backdrop-blur-sm md:h-16 md:flex-nowrap md:px-6">
+        <div className="flex w-full items-center justify-between md:w-auto">
+            <div className="flex items-center gap-2">
+                <TrendingUp className="h-6 w-6 text-primary" />
+                <h1 className="text-2xl font-bold tracking-tight">Turbo Tracker</h1>
+            </div>
+            <div className="md:hidden">
+                <Button variant="ghost" size="icon" onClick={toggleTheme}>
+                    <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    <span className="sr-only">Toggle theme</span>
+                </Button>
+            </div>
         </div>
-        <div className="flex items-center gap-2 ml-4">
-            <div className="relative w-72">
+        <div className="flex w-full flex-grow items-center gap-2 md:w-auto md:flex-grow-0 md:ml-4">
+            <div className="relative w-full md:w-60">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                     id="email-header" 
@@ -214,12 +287,15 @@ export default function Home() {
                     placeholder="Enter your email here!" 
                     className="pl-9 h-8"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      localStorage.setItem('email', e.target.value);
+                    }}
                 />
             </div>
             <Button size="sm" className="h-8" onClick={handleUpdateEmail}>Update</Button>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto hidden md:block">
             <Button variant="ghost" size="icon" onClick={toggleTheme}>
                 <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                 <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -231,37 +307,47 @@ export default function Home() {
         <div className="mx-auto max-w-7xl">
           <section className="mb-8">
             <h2 className="text-xl font-semibold text-foreground/80 mb-4">Live Prices</h2>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <RatioCard
-                ratio={ratio}
-                direction={ratioDirection}
-                minRange={minRange}
-                setMinRange={setMinRange}
-                maxRange={maxRange}
-                setMaxRange={setMaxRange}
-                activeMinRange={activeMinRange}
-                activeMaxRange={activeMaxRange}
-                onUpdate={handleUpdateRange}
-                onErase={() => setShowEraseAlert(true)}
-                notificationsEnabled={notificationsEnabled}
-                onToggleNotifications={() => setNotificationsEnabled(!notificationsEnabled)}
-              />
-              <PriceCard 
-                tokenName="Walrus"
-                tokenSymbol="WAL"
-                price={walPrice.price}
-                direction={walPrice.direction}
-                imageUrl="https://placehold.co/80x80.png"
-                imageHint="walrus"
-              />
-              <PriceCard 
-                tokenName="Sui"
-                tokenSymbol="SUI"
-                price={suiPrice.price}
-                direction={suiPrice.direction}
-                imageUrl="https://placehold.co/80x80.png"
-                imageHint="water wave"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2">
+                <RatioCard
+                  ratio={ratio}
+                  direction={ratioDirection}
+                  minRange={minRange}
+                  setMinRange={(value) => {
+                    setMinRange(value);
+                    localStorage.setItem('minRange', value);
+                  }}
+                  maxRange={maxRange}
+                  setMaxRange={(value) => {
+                    setMaxRange(value);
+                    localStorage.setItem('maxRange', value);
+                  }}
+                  activeMinRange={activeMinRange}
+                  activeMaxRange={activeMaxRange}
+                  onUpdate={handleUpdateRange}
+                  onErase={() => setShowEraseAlert(true)}
+                  notificationsEnabled={notificationsEnabled}
+                  onToggleNotifications={() => {
+                    const newIsEnabled = !notificationsEnabled;
+                    setNotificationsEnabled(newIsEnabled);
+                    localStorage.setItem('notificationsEnabled', String(newIsEnabled));
+                  }}
+                />
+              </div>
+              <div className="flex flex-col gap-6">
+                <PriceCard 
+                  tokenName="Walrus"
+                  tokenSymbol="WAL"
+                  price={walPrice.price}
+                  direction={walPrice.direction}
+                />
+                <PriceCard 
+                  tokenName="Sui"
+                  tokenSymbol="SUI"
+                  price={suiPrice.price}
+                  direction={suiPrice.direction}
+                />
+              </div>
             </div>
           </section>
         </div>

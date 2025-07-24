@@ -95,7 +95,7 @@ export default function RatioCard({
   ) : null;
 
   return (
-    <Card className={cn('transition-shadow duration-300 hover:shadow-lg lg:col-span-1 md:col-span-2 flex flex-col')}>
+    <Card className="h-full flex flex-col">
        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
         <div className="space-y-1">
             <CardTitle className="flex items-center gap-2">
@@ -159,3 +159,5 @@ export default function RatioCard({
     </Card>
   );
 }
+
+    

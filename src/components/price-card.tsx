@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -9,11 +8,9 @@ interface PriceCardProps {
   tokenSymbol: string;
   price: number;
   direction: 'up' | 'down' | 'none';
-  imageUrl: string;
-  imageHint: string;
 }
 
-export default function PriceCard({ tokenName, tokenSymbol, price, direction, imageUrl, imageHint }: PriceCardProps) {
+export default function PriceCard({ tokenName, tokenSymbol, price, direction }: PriceCardProps) {
   const [displayPrice, setDisplayPrice] = useState(price.toFixed(4));
   const [isUpdated, setIsUpdated] = useState(false);
 
@@ -33,7 +30,7 @@ export default function PriceCard({ tokenName, tokenSymbol, price, direction, im
   const flashAnimation = direction === 'up' ? 'animate-flash-up' : 'animate-flash-down';
 
   return (
-    <Card className={cn('transition-shadow duration-300 hover:shadow-lg', isUpdated && flashAnimation)}>
+    <Card className={cn('transition-shadow duration-300 hover:shadow-lg flex-1 flex flex-col', isUpdated && flashAnimation)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <div className="space-y-1">
           <CardTitle>{tokenName}</CardTitle>
@@ -46,20 +43,9 @@ export default function PriceCard({ tokenName, tokenSymbol, price, direction, im
             )}
           </div>
         </div>
-        <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-muted flex items-center justify-center">
-            <Image
-                src={imageUrl}
-                alt={`${tokenName} logo`}
-                width={80}
-                height={80}
-                data-ai-hint={imageHint}
-                className="object-cover"
-            />
-        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-grow flex flex-col justify-center">
         <div className="text-4xl font-bold">${displayPrice}</div>
-        <div className='text-xs text-muted-foreground mt-1 invisible'>Price updated</div>
       </CardContent>
     </Card>
   );
