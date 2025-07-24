@@ -56,7 +56,9 @@ export async function getSuiPrice(): Promise<number> {
         const data = await response.json();
         const parsedData = BybitTickerSchema.parse(data);
         if (parsedData.result.list.length > 0) {
-            return parseFloat(parsedData.result.list[0].lastPrice);
+            const price = parseFloat(parsedData.result.list[0].lastPrice);
+            console.log(price);
+            return price;
         }
         console.error('SUI price not found in Bybit response');
         return 0;
