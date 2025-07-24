@@ -43,7 +43,8 @@ const sendOutOfRangeEmailFlow = ai.defineFlow(
       <p>Current ratio WAL/SUI: ${ratio.toFixed(6)}</p>
     `;
 
-    await sendEmail({
+    // Do not await this, let it run in the background
+    sendEmail({
       to,
       subject,
       html,
@@ -65,7 +66,8 @@ const sendInRangeEmailFlow = ai.defineFlow(
         <p>Current ratio WAL/SUI: ${ratio.toFixed(6)}</p>
       `;
   
-      await sendEmail({
+      // Do not await this, let it run in the background
+      sendEmail({
         to,
         subject,
         html,

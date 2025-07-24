@@ -15,7 +15,7 @@ export default function PriceCard({ tokenName, tokenSymbol, price, direction }: 
   const [isUpdated, setIsUpdated] = useState(false);
 
   useEffect(() => {
-    if (price !== undefined) {
+    if (price !== undefined && price !== null) {
       setDisplayPrice(price.toFixed(4));
       if (direction !== 'none') {
         setIsUpdated(true);
@@ -24,6 +24,8 @@ export default function PriceCard({ tokenName, tokenSymbol, price, direction }: 
         }, 500); 
         return () => clearTimeout(timer);
       }
+    } else {
+      setDisplayPrice('0.0000');
     }
   }, [price, direction]);
 

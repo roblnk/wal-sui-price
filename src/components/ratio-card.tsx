@@ -46,8 +46,10 @@ export default function RatioCard({
   const [displayRatio, setDisplayRatio] = useState('0.000000');
 
   useEffect(() => {
-    if (ratio !== undefined) {
+    if (ratio !== undefined && ratio !== null) {
       setDisplayRatio(ratio.toFixed(6));
+    } else {
+      setDisplayRatio('0.000000');
     }
   }, [ratio]);
 
