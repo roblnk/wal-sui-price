@@ -56,9 +56,9 @@ export async function getWalPrice(): Promise<number> {
 
         return parseFloat(parsedData.result.list[0].lastPrice);
     } catch (error) {
-        console.error(`Error processing price for WAL:`, error);
-        // Return a default or cached value if appropriate, or rethrow
-        throw new Error('Failed to get WAL price.');
+        console.error(`Error getting WAL price:`, error);
+        // Re-throwing the original error to get more details in Vercel logs
+        throw error;
     }
 }
 
@@ -79,7 +79,8 @@ export async function getSuiPrice(): Promise<number> {
 
         return parseFloat(parsedData.result.list[0].lastPrice);
     } catch (error) {
-        console.error(`Error processing price for SUI:`, error);
-        throw new Error('Failed to get SUI price.');
+        console.error(`Error getting SUI price:`, error);
+        // Re-throwing the original error to get more details in Vercel logs
+        throw error;
     }
 }
