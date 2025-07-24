@@ -1,4 +1,5 @@
-"use server";
+
+'use server';
 
 import { z } from 'zod';
 
@@ -16,21 +17,24 @@ export async function getWalPrice(): Promise<number> {
         const response = await fetch(process.env.NEXT_PUBLIC_BYBIT_WAL_API_URL!, { 
             cache: 'no-store',
             headers: {
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
         });
         if (!response.ok) {
-            throw new Error(`Failed to fetch price for WAL from Bybit`);
+            console.error(`Failed to fetch price for WAL from Bybit: ${response.statusText}`);
+            return 0;
         }
         const data = await response.json();
         const parsedData = BybitTickerSchema.parse(data);
         if (parsedData.result.list.length > 0) {
             return parseFloat(parsedData.result.list[0].lastPrice);
         }
-        throw new Error('WAL price not found in Bybit response');
+        console.error('WAL price not found in Bybit response');
+        return 0;
     } catch (error) {
         console.error(`Error fetching price for WAL:`, error);
-        throw error;
+        return 0;
     }
 }
 
@@ -39,20 +43,24 @@ export async function getSuiPrice(): Promise<number> {
         const response = await fetch(process.env.NEXT_PUBLIC_BYBIT_SUI_API_URL!, { 
             cache: 'no-store',
             headers: {
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
         });
         if (!response.ok) {
-            throw new Error(`Failed to fetch price for SUI from Bybit`);
+            console.error(`Failed to fetch price for SUI from Bybit: ${response.statusText}`);
+            return 0;
         }
         const data = await response.json();
         const parsedData = BybitTickerSchema.parse(data);
         if (parsedData.result.list.length > 0) {
             return parseFloat(parsedData.result.list[0].lastPrice);
         }
-        throw new Error('SUI price not found in Bybit response');
+        console.error('SUI price not found in Bybit response');
+        return 0;
     } catch (error) {
         console.error(`Error fetching price for SUI:`, error);
-        throw error;
+        return 0;
     }
 }
+

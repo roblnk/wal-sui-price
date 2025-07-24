@@ -11,17 +11,19 @@ interface PriceCardProps {
 }
 
 export default function PriceCard({ tokenName, tokenSymbol, price, direction }: PriceCardProps) {
-  const [displayPrice, setDisplayPrice] = useState(price.toFixed(4));
+  const [displayPrice, setDisplayPrice] = useState('0.0000');
   const [isUpdated, setIsUpdated] = useState(false);
 
   useEffect(() => {
-    setDisplayPrice(price.toFixed(4));
-    if (direction !== 'none') {
-      setIsUpdated(true);
-      const timer = setTimeout(() => {
-        setIsUpdated(false);
-      }, 500); 
-      return () => clearTimeout(timer);
+    if (price !== undefined) {
+      setDisplayPrice(price.toFixed(4));
+      if (direction !== 'none') {
+        setIsUpdated(true);
+        const timer = setTimeout(() => {
+          setIsUpdated(false);
+        }, 500); 
+        return () => clearTimeout(timer);
+      }
     }
   }, [price, direction]);
 

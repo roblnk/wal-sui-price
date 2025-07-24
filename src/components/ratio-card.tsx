@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { ArrowUp, ArrowDown, ChevronUp, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -42,10 +43,12 @@ export default function RatioCard({
   notificationsEnabled,
   onToggleNotifications,
 }: RatioCardProps) {
-  const [displayRatio, setDisplayRatio] = useState(ratio.toFixed(6));
+  const [displayRatio, setDisplayRatio] = useState('0.000000');
 
   useEffect(() => {
-    setDisplayRatio(ratio.toFixed(6));
+    if (ratio !== undefined) {
+      setDisplayRatio(ratio.toFixed(6));
+    }
   }, [ratio]);
 
   const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,9 +81,11 @@ export default function RatioCard({
   const min = parseFloat(activeMinRange);
   const max = parseFloat(activeMaxRange);
   const isRangeSet = min > 0 || max > 0;
-  const isInRange = isRangeSet && ratio >= min && ratio <= max;
   
-  const rangeStatus = isRangeSet ? (
+  const isInRange = isRangeSet && ratio > 0 && ratio >= min && ratio <= max;
+
+  
+  const rangeStatus = isRangeSet && ratio > 0 ? (
       isInRange ? (
           <div className="flex items-center gap-2 text-emerald-500 border border-emerald-500/50 rounded-md px-3 py-1 bg-emerald-500/10">
               <CheckCircle2 className="h-5 w-5" />
@@ -159,5 +164,3 @@ export default function RatioCard({
     </Card>
   );
 }
-
-    
