@@ -1,5 +1,7 @@
-# Firebase Studio
+node >=20
+to build:
+npm i
+npm run build
 
-This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
+to run:
+npm start
