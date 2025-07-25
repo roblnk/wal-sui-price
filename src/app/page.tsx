@@ -18,7 +18,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label";
 import { updateUserPreferences, getUserPreferences } from '@/ai/flows/background-flow';
+import { sendOutOfRangeEmail, sendInRangeEmail } from '@/ai/flows/send-email-flow';
 
 
 export type PriceData = {
@@ -37,16 +48,17 @@ export default function Home() {
   const [activeMinRange, setActiveMinRange] = useState("0.000000");
   const [activeMaxRange, setActiveMaxRange] = useState("0.000000");
   const [email, setEmail] = useState("");
-  const [notificationEmail, setNotificationEmail] = useState("");
   const [showEraseAlert, setShowEraseAlert] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
   const { toast } = useToast();
 
   const fetchPrices = useCallback(async () => {
     try {
       const response = await fetch('/api/prices');
       if (!response.ok) {
-        throw new Error('Failed to fetch prices');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch prices');
       }
       const data = await response.json();
       
@@ -61,13 +73,17 @@ export default function Home() {
       }));
 
     } catch (error) {
-      console.error("Failed to fetch prices:", error);
+       toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "An unknown error occurred while fetching prices.",
+          variant: "destructive",
+        });
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchPrices();
-    const interval = setInterval(fetchPrices, 5000);
+    const interval = setInterval(fetchPrices, 1000);
 
     return () => {
       clearInterval(interval);
@@ -88,21 +104,19 @@ export default function Home() {
         try {
             const prefs = await getUserPreferences();
             if (prefs) {
-                setNotificationEmail(prefs.email);
                 setMinRange(prefs.minRange);
                 setMaxRange(prefs.maxRange);
                 setActiveMinRange(prefs.minRange);
                 setActiveMaxRange(prefs.maxRange);
                 setNotificationsEnabled(prefs.notificationsEnabled);
-                if (localEmail && prefs.email !== localEmail) {
-                    // This can happen if settings were configured on another browser
-                    // We can decide which one to trust, for now, server wins
-                    setEmail(prefs.email);
-                    localStorage.setItem('email', prefs.email);
+                
+                const currentEmail = prefs.email || localEmail;
+                setEmail(currentEmail);
+                if (currentEmail) {
+                    localStorage.setItem('email', currentEmail);
                 }
             }
         } catch (e) {
-            console.error("Could not load user preferences", e);
             toast({
                 title: "Error",
                 description: "Could not load saved notification settings.",
@@ -132,7 +146,8 @@ export default function Home() {
     }
     try {
         await updateUserPreferences({ email });
-        setNotificationEmail(email);
+        localStorage.setItem('email', email);
+        setShowEmailDialog(false);
         toast({
             title: "Success",
             description: `Notification email updated to ${email}.`,
@@ -160,13 +175,18 @@ export default function Home() {
     }
 
     try {
-        await updateUserPreferences({ minRange, maxRange });
+        await updateUserPreferences({ minRange, maxRange, lastNotifiedState: null });
         setActiveMinRange(minRange);
         setActiveMaxRange(maxRange);
         toast({
             title: "Success",
-            description: `Notification range updated.`,
+            description: `Notification range updated. Please re-enable notifications to apply changes.`,
         });
+        if(notificationsEnabled) {
+            setNotificationsEnabled(false);
+            await updateUserPreferences({ notificationsEnabled: false });
+        }
+        
     } catch (e) {
         toast({
             title: "Error",
@@ -180,7 +200,7 @@ export default function Home() {
     const newMinRange = "0.000000";
     const newMaxRange = "0.000000";
     try {
-        await updateUserPreferences({ minRange: newMinRange, maxRange: newMaxRange });
+        await updateUserPreferences({ minRange: newMinRange, maxRange: newMaxRange, lastNotifiedState: null });
         setMinRange(newMinRange);
         setMaxRange(newMaxRange);
         setActiveMinRange(newMinRange);
@@ -202,19 +222,64 @@ export default function Home() {
 
   const handleToggleNotifications = async () => {
     const newIsEnabled = !notificationsEnabled;
-    try {
-        await updateUserPreferences({ notificationsEnabled: newIsEnabled });
-        setNotificationsEnabled(newIsEnabled);
-        toast({
-            title: "Success",
-            description: `Notifications ${newIsEnabled ? 'enabled' : 'disabled'}.`,
-        });
-    } catch (e) {
-        toast({
-            title: "Error",
-            description: "Failed to update notification settings.",
-            variant: "destructive"
-        });
+
+    if (newIsEnabled) {
+        if (!email) {
+            toast({
+                title: "Error",
+                description: "Please set a notification email first.",
+                variant: "destructive"
+            });
+            return;
+        }
+        const min = parseFloat(minRange);
+        const max = parseFloat(maxRange);
+        if (min === 0 && max === 0) {
+            toast({
+                title: "Error",
+                description: "Please set a notification range first.",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        try {
+            const isOutOfRange = ratio > 0 && (ratio < min || ratio > max);
+            const initialState = isOutOfRange ? 'out-of-range' : 'in-range';
+            
+            await updateUserPreferences({ 
+                notificationsEnabled: true, 
+                lastNotifiedState: initialState 
+            });
+            setNotificationsEnabled(true);
+            
+            toast({
+                title: "Notifications Enabled",
+                description: `Monitoring started. Initial state is ${initialState}.`,
+            });
+        } catch (e) {
+            toast({
+                title: "Error",
+                description: "Failed to enable notifications.",
+                variant: "destructive"
+            });
+        }
+    } else {
+        // Disabling notifications
+        try {
+            await updateUserPreferences({ notificationsEnabled: false, lastNotifiedState: null });
+            setNotificationsEnabled(false);
+            toast({
+                title: "Success",
+                description: "Notifications disabled.",
+            });
+        } catch (e) {
+            toast({
+                title: "Error",
+                description: "Failed to update notification settings.",
+                variant: "destructive"
+            });
+        }
     }
   };
 
@@ -238,7 +303,41 @@ export default function Home() {
                 <TrendingUp className="h-6 w-6 text-primary" />
                 <h1 className="text-2xl font-bold tracking-tight">Turbo Tracker</h1>
             </div>
-            <div className="md:hidden">
+            <div className="flex items-center gap-2 md:hidden">
+                 <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <Mail className="h-5 w-5" />
+                            <span className="sr-only">Update Email</span>
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                        <DialogTitle>Update Notification Email</DialogTitle>
+                        <DialogDescription>
+                            Enter the email address where you want to receive notifications.
+                        </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="email" className="text-right">
+                            Email
+                            </Label>
+                            <Input
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="col-span-3"
+                            placeholder="you@example.com"
+                            />
+                        </div>
+                        </div>
+                        <DialogFooter>
+                        <Button type="submit" onClick={handleUpdateEmail}>Save changes</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
                 <Button variant="ghost" size="icon" onClick={toggleTheme}>
                     <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                     <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -246,24 +345,42 @@ export default function Home() {
                 </Button>
             </div>
         </div>
-        <div className="flex w-full flex-grow items-center gap-2 md:w-auto md:flex-grow-0 md:ml-4">
-            <div className="relative w-full md:w-48">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    id="email-header" 
-                    type="email" 
-                    placeholder="Enter your email here!" 
-                    className="pl-9 h-8"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      localStorage.setItem('email', e.target.value);
-                    }}
-                />
-            </div>
-            <Button size="sm" className="h-8" onClick={handleUpdateEmail}>Update</Button>
-        </div>
-        <div className="ml-auto hidden md:block">
+        
+        <div className="ml-auto hidden md:flex items-center gap-2">
+             <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                        <Mail className="h-5 w-5" />
+                        <span className="sr-only">Update Email</span>
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                    <DialogTitle>Update Notification Email</DialogTitle>
+                    <DialogDescription>
+                        Enter the email address where you want to receive notifications.
+                    </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="email-desktop" className="text-right">
+                        Email
+                        </Label>
+                        <Input
+                        id="email-desktop"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="col-span-3"
+                        placeholder="you@example.com"
+                        />
+                    </div>
+                    </div>
+                    <DialogFooter>
+                    <Button type="submit" onClick={handleUpdateEmail}>Save changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             <Button variant="ghost" size="icon" onClick={toggleTheme}>
                 <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                 <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -331,5 +448,4 @@ export default function Home() {
       </AlertDialog>
     </div>
   );
-
-    
+}

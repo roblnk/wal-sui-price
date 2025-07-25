@@ -17,6 +17,7 @@ const EmailFlowInputSchema = z.object({
   ratio: z.number(),
   minRange: z.number(),
   maxRange: z.number(),
+  newState: z.string(),
 });
 
 export type EmailFlowInput = z.infer<typeof EmailFlowInputSchema>;
@@ -36,11 +37,13 @@ const sendOutOfRangeEmailFlow = ai.defineFlow(
     outputSchema: z.void(),
   },
   async (input) => {
-    const { to, ratio, minRange, maxRange } = input;
+    const { to, ratio, minRange, maxRange, newState } = input;
 
-    const subject = `Out of range: ${minRange.toFixed(6)} - ${maxRange.toFixed(6)}`;
+    const subject = `State changed to: ${newState.toUpperCase()}`;
     const html = `
-      <p>Current ratio WAL/SUI: ${ratio.toFixed(6)}</p>
+      <p>The WAL/SUI ratio has moved out of your defined range.</p>
+      <p>Current ratio: <strong>${ratio.toFixed(6)}</strong></p>
+      <p>Your range: ${minRange.toFixed(6)} - ${maxRange.toFixed(6)}</p>
     `;
 
     // Do not await this, let it run in the background
@@ -59,11 +62,13 @@ const sendInRangeEmailFlow = ai.defineFlow(
       outputSchema: z.void(),
     },
     async (input) => {
-      const { to, ratio, minRange, maxRange } = input;
+      const { to, ratio, minRange, maxRange, newState } = input;
   
-      const subject = `In range: ${minRange.toFixed(6)} - ${maxRange.toFixed(6)}`;
+      const subject = `State changed to: ${newState.toUpperCase()}`;
       const html = `
-        <p>Current ratio WAL/SUI: ${ratio.toFixed(6)}</p>
+        <p>The WAL/SUI ratio has moved back into your defined range.</p>
+        <p>Current ratio: <strong>${ratio.toFixed(6)}</strong></p>
+        <p>Your range: ${minRange.toFixed(6)} - ${maxRange.toFixed(6)}</p>
       `;
   
       // Do not await this, let it run in the background
@@ -74,5 +79,4 @@ const sendInRangeEmailFlow = ai.defineFlow(
       });
     }
 );
-
-    
+  

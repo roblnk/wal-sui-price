@@ -11,33 +11,26 @@ const BybitTickerSchema = z.object({
 });
 
 async function fetchPrice(url: string, tokenName: string): Promise<number> {
-    try {
-        const response = await fetch(url, { 
-            cache: 'no-store',
-            headers: {
-                'Accept': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
-        });
-
-        if (!response.ok) {
-            console.error(`Failed to fetch price for ${tokenName} from Bybit: ${response.statusText}`);
-            return 0;
+    const response = await fetch(url, { 
+        cache: 'no-store',
+        headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
+    });
 
-        const data = await response.json();
-        const parsedData = BybitTickerSchema.parse(data);
-
-        if (parsedData.result.list.length > 0) {
-            return parseFloat(parsedData.result.list[0].lastPrice);
-        }
-
-        console.error(`${tokenName} price not found in Bybit response`);
-        return 0;
-    } catch (error) {
-        console.error(`Error fetching price for ${tokenName}:`, error);
-        return 0;
+    if (!response.ok) {
+        throw new Error(`Failed to fetch price for ${tokenName} from Bybit: ${response.statusText}`);
     }
+
+    const data = await response.json();
+    const parsedData = BybitTickerSchema.parse(data);
+
+    if (parsedData.result.list.length > 0) {
+        return parseFloat(parsedData.result.list[0].lastPrice);
+    }
+
+    throw new Error(`${tokenName} price not found in Bybit response`);
 }
 
 export async function GET() {
@@ -56,7 +49,7 @@ export async function GET() {
 
         return NextResponse.json({ walPrice, suiPrice });
     } catch (error) {
-        console.error('Failed to fetch prices:', error);
-        return NextResponse.json({ error: 'Failed to fetch prices' }, { status: 500 });
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+        return NextResponse.json({ error: `Failed to fetch prices: ${errorMessage}` }, { status: 500 });
     }
 }

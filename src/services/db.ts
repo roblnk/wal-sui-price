@@ -23,7 +23,7 @@ async function ensureDbFile(): Promise<void> {
             minRange: "0.000000",
             maxRange: "0.000000",
             notificationsEnabled: false,
-            lastNotifiedState: null,
+            lastNotifiedState: 'out-of-range',
         };
         await fs.writeFile(dbPath, JSON.stringify(defaultData, null, 2), 'utf-8');
     }

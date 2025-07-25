@@ -55,15 +55,15 @@ export default function RatioCard({
 
   const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (/^\d*\.?\d*$/.test(value)) {
-      setMinRange(value);
+    if (/^\d*[,.]?\d*$/.test(value)) {
+        setMinRange(value.replace(',', '.'));
     }
   };
 
   const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (/^\d*\.?\d*$/.test(value)) {
-      setMaxRange(value);
+    if (/^\d*[,.]?\d*$/.test(value)) {
+        setMaxRange(value.replace(',', '.'));
     }
   };
 
@@ -131,7 +131,7 @@ export default function RatioCard({
                  <Label className="text-xs font-semibold text-foreground/80">Ratio Range for Notifications</Label>
                 <div className="flex items-center gap-2">
                     <div className="relative w-full">
-                        <Input type="text" inputMode="numeric" placeholder="Min" value={minRange} onChange={handleMinChange} className="pr-8" />
+                        <Input type="text" inputMode="decimal" placeholder="Min" value={minRange} onChange={handleMinChange} className="pr-8" />
                         <div className="absolute inset-y-0 right-0 flex flex-col justify-center">
                             <Button variant="ghost" size="icon" className="h-1/2 w-8 rounded-none" onClick={() => adjustMinRange(STEP)}><ChevronUp className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="h-1/2 w-8 rounded-none" onClick={() => adjustMinRange(-STEP)}><ChevronDown className="h-4 w-4" /></Button>
@@ -139,7 +139,7 @@ export default function RatioCard({
                     </div>
                     <span className="text-muted-foreground">-</span>
                     <div className="relative w-full">
-                        <Input type="text" inputMode="numeric" placeholder="Max" value={maxRange} onChange={handleMaxChange} className="pr-8" />
+                        <Input type="text" inputMode="decimal" placeholder="Max" value={maxRange} onChange={handleMaxChange} className="pr-8" />
                         <div className="absolute inset-y-0 right-0 flex flex-col justify-center">
                             <Button variant="ghost" size="icon" className="h-1/2 w-8 rounded-none" onClick={() => adjustMaxRange(STEP)}><ChevronUp className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="h-1/2 w-8 rounded-none" onClick={() => adjustMaxRange(-STEP)}><ChevronDown className="h-4 w-4" /></Button>
