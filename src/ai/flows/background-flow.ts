@@ -12,7 +12,8 @@ import { z } from 'zod';
 import { sendOutOfRangeEmail, sendInRangeEmail } from './send-email-flow';
 import { readUserPreferences, writeUserPreferences, UserPreferences } from '@/services/db';
 
-let intervalId: NodeJS.Timeout | null = null;
+let intervalId: NodeJS.Timeout | null = null; // Changed to NodeJS.Timeout for better type safety
+let currentPollingInterval: number = 0; // To store the current polling interval in milliseconds
 
 
 const BybitTickerSchema = z.object({
@@ -49,9 +50,26 @@ async function fetchPrice(url: string, tokenName: string): Promise<number> {
 export const backgroundPriceCheckFlow = ai.defineFlow(
     {
         name: 'backgroundPriceCheckFlow',
+        inputSchema: z.object({
+            // Interval in milliseconds for polling
+            intervalMs: z.number().optional().default(5000), // Default to 5 seconds
+        }),
         outputSchema: z.void(),
     },
-    async () => {
+    async (input) => {
+        
+        const pollingInterval = input.intervalMs;
+
+        // Clear any existing interval to prevent multiple instances
+        if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+        }
+        // Store the current polling interval
+        currentPollingInterval = pollingInterval;
+
+
+
         const check = async () => {
             try {
                 const prefs = await readUserPreferences();
@@ -60,6 +78,7 @@ export const backgroundPriceCheckFlow = ai.defineFlow(
                     if (intervalId) {
                         clearInterval(intervalId);
                         intervalId = null;
+                        console.log('Background price check stopped: Notifications disabled or preferences incomplete.');
                     }
                     return;
                 }
@@ -99,7 +118,6 @@ export const backgroundPriceCheckFlow = ai.defineFlow(
                         });
 
                         await writeUserPreferences({ lastNotifiedState: currentState });
-                        // Notify the frontend (via an event or API, see Step 2)
                         await notifyFrontend(currentState, currentRatio, min, max);
                     }
                 }
@@ -112,14 +130,20 @@ export const backgroundPriceCheckFlow = ai.defineFlow(
             }
         };
 
-            await check();
-
+        await check();
+        
+        if (!intervalId || currentPollingInterval !== pollingInterval) {
+            intervalId = setInterval(check, pollingInterval);
+            console.log(`Background price check started with interval: ${pollingInterval}ms`);
+        }
     }
 );
 
 
 async function notifyFrontend(state: string, ratio: number, minRange: number, maxRange: number) {
-  // To be implemented in Step 2
+    // To be implemented in Step 2
+    console.log(`Frontend notification: State: ${state}, Ratio: ${ratio.toFixed(6)}`);
+
 }
 
 const UserPreferencesSchema = z.object({

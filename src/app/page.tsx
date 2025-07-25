@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label";
 import { updateUserPreferences, getUserPreferences } from '@/ai/flows/background-flow';
-import { sendOutOfRangeEmail, sendInRangeEmail } from '@/ai/flows/send-email-flow';
 
 
 export type PriceData = {
@@ -51,6 +50,8 @@ export default function Home() {
   const [showEraseAlert, setShowEraseAlert] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [lastNotifiedStateFrontend, setLastNotifiedStateFrontend] = useState<string | null>(null); // To track state for frontend notifications
+
   const { toast } = useToast();
 
   const fetchPrices = useCallback(async () => {
@@ -81,14 +82,6 @@ export default function Home() {
     }
   }, [toast]);
 
-  useEffect(() => {
-    fetchPrices();
-    const interval = setInterval(fetchPrices, 1000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [fetchPrices]);
 
 
   useEffect(() => {
@@ -126,7 +119,75 @@ export default function Home() {
     }
     loadUserPreferences();
 
-  }, [toast]);
+    
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+
+  }, [fetchPrices, toast]);
+
+
+
+  // Effect for polling backend for notification state changes
+  useEffect(() => {
+    let notificationPollingInterval: NodeJS.Timeout | null = null;
+
+    const pollNotificationState = async () => {
+        try {
+            const prefs = await getUserPreferences();
+            if (prefs.notificationsEnabled) {
+                // If the backend's last notified state is different from the frontend's tracked state,
+                // and there's a valid new state from the backend, show a toast.
+                if (prefs.lastNotifiedState && prefs.lastNotifiedState !== lastNotifiedStateFrontend) {
+                    const message = prefs.lastNotifiedState === 'in-range' 
+                        ? "The WAL/SUI ratio has moved back into your defined range."
+                        : "The WAL/SUI ratio has moved out of your defined range.";
+                    
+                    toast({
+                        title: `Ratio: ${prefs.lastNotifiedState.toUpperCase()}`,
+                        description: message,
+                        variant: prefs.lastNotifiedState === 'in-range' ? 'default' : 'destructive',
+                    });
+                    setLastNotifiedStateFrontend(prefs.lastNotifiedState); // Update frontend's tracked state
+                }
+            } else {
+                // If notifications are disabled, ensure frontend state is reset
+                setLastNotifiedStateFrontend(null);
+            }
+            setNotificationsEnabled(prefs.notificationsEnabled || false); // Keep frontend toggle in sync
+        } catch (error) {
+            console.error("Error polling for notification state:", error);
+            // Don't show toast for every polling error, as it can be noisy
+        }
+    };
+
+    // Start polling when component mounts and notifications are potentially enabled
+    // Only poll if notifications are enabled from the initial load
+    if (notificationsEnabled) {
+        pollNotificationState(); // Run immediately
+        notificationPollingInterval = setInterval(pollNotificationState, 5000); // Poll every 5 seconds
+    } else {
+        // If initially disabled, still set up the interval for future enablement
+        // but only if it's not already running.
+        notificationPollingInterval = setInterval(pollNotificationState, 5000); // Poll every 5 seconds regardless
+    }
+
+
+    return () => {
+      if (notificationPollingInterval) {
+        clearInterval(notificationPollingInterval);
+      }
+    };
+  }, [lastNotifiedStateFrontend, notificationsEnabled, toast]); // Dependencies: lastNotifiedStateFrontend, notificationsEnabled, toast
+
+
+
+
+
+
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
