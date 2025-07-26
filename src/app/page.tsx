@@ -28,7 +28,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label";
-import { updateUserPreferences, getUserPreferences } from '@/ai/flows/background-flow';
+import { updateUserPreferences, getUserPreferences } from '@/services/db';
 
 
 export type PriceData = {
@@ -102,6 +102,7 @@ export default function Home() {
                 setActiveMinRange(prefs.minRange);
                 setActiveMaxRange(prefs.maxRange);
                 setNotificationsEnabled(prefs.notificationsEnabled);
+                setLastNotifiedStateFrontend(prefs.lastNotifiedState);
                 
                 const currentEmail = prefs.email || localEmail;
                 setEmail(currentEmail);
@@ -133,11 +134,10 @@ export default function Home() {
 
   // Effect for polling backend for notification state changes
   useEffect(() => {
-    let notificationPollingInterval: NodeJS.Timeout | null = null;
-
     const pollNotificationState = async () => {
         try {
             const prefs = await getUserPreferences();
+            
             if (prefs.notificationsEnabled) {
                 // If the backend's last notified state is different from the frontend's tracked state,
                 // and there's a valid new state from the backend, show a toast.
@@ -149,39 +149,33 @@ export default function Home() {
                     toast({
                         title: `Ratio: ${prefs.lastNotifiedState.toUpperCase()}`,
                         description: message,
-                        variant: prefs.lastNotifiedState === 'in-range' ? 'default' : 'destructive',
+                        variant: prefs.lastNotifiedState === 'in-range' ? 'success' : 'destructive',
                     });
                     setLastNotifiedStateFrontend(prefs.lastNotifiedState); // Update frontend's tracked state
                 }
             } else {
                 // If notifications are disabled, ensure frontend state is reset
-                setLastNotifiedStateFrontend(null);
+                if (lastNotifiedStateFrontend !== null) {
+                    setLastNotifiedStateFrontend(null);
+                }
             }
-            setNotificationsEnabled(prefs.notificationsEnabled || false); // Keep frontend toggle in sync
+            // Keep frontend toggle in sync with backend state
+            if (notificationsEnabled !== prefs.notificationsEnabled) {
+                setNotificationsEnabled(prefs.notificationsEnabled || false);
+            }
+
         } catch (error) {
             console.error("Error polling for notification state:", error);
             // Don't show toast for every polling error, as it can be noisy
         }
     };
 
-    // Start polling when component mounts and notifications are potentially enabled
-    // Only poll if notifications are enabled from the initial load
-    if (notificationsEnabled) {
-        pollNotificationState(); // Run immediately
-        notificationPollingInterval = setInterval(pollNotificationState, 5000); // Poll every 5 seconds
-    } else {
-        // If initially disabled, still set up the interval for future enablement
-        // but only if it's not already running.
-        notificationPollingInterval = setInterval(pollNotificationState, 5000); // Poll every 5 seconds regardless
-    }
-
+    const notificationPollingInterval = setInterval(pollNotificationState, 5000); // Poll every 5 seconds
 
     return () => {
-      if (notificationPollingInterval) {
-        clearInterval(notificationPollingInterval);
-      }
+      clearInterval(notificationPollingInterval);
     };
-  }, [lastNotifiedStateFrontend, notificationsEnabled, toast]); // Dependencies: lastNotifiedStateFrontend, notificationsEnabled, toast
+  }, [lastNotifiedStateFrontend, notificationsEnabled, toast]); // Dependencies trigger re-check
 
 
 
@@ -236,17 +230,17 @@ export default function Home() {
     }
 
     try {
-        await updateUserPreferences({ minRange, maxRange, lastNotifiedState: null });
+        // When range is updated, we should disable notifications and clear the last state
+        // This forces the user to re-enable them, acknowledging the new range.
+        await updateUserPreferences({ minRange, maxRange, notificationsEnabled: false, lastNotifiedState: null });
         setActiveMinRange(minRange);
         setActiveMaxRange(maxRange);
+        setNotificationsEnabled(false);
+        setLastNotifiedStateFrontend(null);
         toast({
             title: "Success",
             description: `Notification range updated. Please re-enable notifications to apply changes.`,
         });
-        if(notificationsEnabled) {
-            setNotificationsEnabled(false);
-            await updateUserPreferences({ notificationsEnabled: false });
-        }
         
     } catch (e) {
         toast({
@@ -261,11 +255,13 @@ export default function Home() {
     const newMinRange = "0.000000";
     const newMaxRange = "0.000000";
     try {
-        await updateUserPreferences({ minRange: newMinRange, maxRange: newMaxRange, lastNotifiedState: null });
+        await updateUserPreferences({ minRange: newMinRange, maxRange: newMaxRange, notificationsEnabled: false, lastNotifiedState: null });
         setMinRange(newMinRange);
         setMaxRange(newMaxRange);
         setActiveMinRange(newMinRange);
         setActiveMaxRange(newMaxRange);
+        setNotificationsEnabled(false);
+        setLastNotifiedStateFrontend(null);
         setShowEraseAlert(false);
         toast({
             title: "Success",
@@ -305,6 +301,7 @@ export default function Home() {
         }
 
         try {
+            // Determine the current state based on the live ratio
             const isOutOfRange = ratio > 0 && (ratio < min || ratio > max);
             const initialState = isOutOfRange ? 'out-of-range' : 'in-range';
             
@@ -313,6 +310,7 @@ export default function Home() {
                 lastNotifiedState: initialState 
             });
             setNotificationsEnabled(true);
+            setLastNotifiedStateFrontend(initialState);
             
             toast({
                 title: "Notifications Enabled",
@@ -330,6 +328,7 @@ export default function Home() {
         try {
             await updateUserPreferences({ notificationsEnabled: false, lastNotifiedState: null });
             setNotificationsEnabled(false);
+            setLastNotifiedStateFrontend(null);
             toast({
                 title: "Success",
                 description: "Notifications disabled.",

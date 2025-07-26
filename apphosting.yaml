@@ -4,4 +4,7 @@
 runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
-  maxInstances: 10
+  maxInstances: 1
+cron:
+  - schedule: "every 5 minutes"
+    uri: "/api/cron"

@@ -3,42 +3,50 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { z } from 'zod';
 
-export interface UserPreferences {
-    email: string;
-    minRange: string;
-    maxRange: string;
-    notificationsEnabled: boolean;
-    lastNotifiedState: 'in-range' | 'out-of-range' | null;
-}
+const UserPreferencesSchema = z.object({
+    email: z.string().default(""),
+    minRange: z.string().default("0.000000"),
+    maxRange: z.string().default("0.000000"),
+    notificationsEnabled: z.boolean().default(false),
+    lastNotifiedState: z.enum(['in-range', 'out-of-range']).nullable().default(null),
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
 const dbPath = path.resolve(process.cwd(), 'src', 'services', 'db.json');
 
-async function ensureDbFile(): Promise<void> {
+async function ensureDbFile(): Promise<UserPreferences> {
     try {
         await fs.access(dbPath);
+        const data = await fs.readFile(dbPath, 'utf-8');
+        if (data.trim() === '') {
+          throw new Error('DB file is empty.');
+        }
+        return UserPreferencesSchema.parse(JSON.parse(data));
     } catch (error) {
-        const defaultData: UserPreferences = {
-            email: "",
-            minRange: "0.000000",
-            maxRange: "0.000000",
-            notificationsEnabled: false,
-            lastNotifiedState: 'out-of-range',
-        };
+        console.warn('DB file not found, empty, or corrupted. Creating a new one with default values.');
+        const defaultData = UserPreferencesSchema.parse({});
         await fs.writeFile(dbPath, JSON.stringify(defaultData, null, 2), 'utf-8');
+        return defaultData;
     }
 }
 
 export async function readUserPreferences(): Promise<UserPreferences> {
-    await ensureDbFile();
-    const data = await fs.readFile(dbPath, 'utf-8');
-    return JSON.parse(data) as UserPreferences;
+    const prefs = await ensureDbFile();
+    return prefs;
 }
 
-export async function writeUserPreferences(prefs: Partial<UserPreferences>): Promise<void> {
+export async function updateUserPreferences(prefs: Partial<UserPreferences>): Promise<void> {
     const currentPrefs = await readUserPreferences();
     const newPrefs = { ...currentPrefs, ...prefs };
-    await fs.writeFile(dbPath, JSON.stringify(newPrefs, null, 2), 'utf-8');
+    const validatedPrefs = UserPreferencesSchema.parse(newPrefs);
+    await fs.writeFile(dbPath, JSON.stringify(validatedPrefs, null, 2), 'utf-8');
 }
 
+
+export async function getUserPreferences(): Promise<UserPreferences> {
+    return await readUserPreferences();
+}
     

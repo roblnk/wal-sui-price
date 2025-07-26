@@ -46,12 +46,17 @@ const sendOutOfRangeEmailFlow = ai.defineFlow(
       <p>Your range: ${minRange.toFixed(6)} - ${maxRange.toFixed(6)}</p>
     `;
 
-    // Do not await this, let it run in the background
-    sendEmail({
-      to,
-      subject,
-      html,
-    });
+    try {
+      await sendEmail({
+        to,
+        subject,
+        html,
+      });
+    } catch (error) {
+        console.error("Failed to send out-of-range email:", error);
+        // Re-throw the error to be caught by Genkit's monitoring
+        throw error;
+    }
   }
 );
 
@@ -71,12 +76,17 @@ const sendInRangeEmailFlow = ai.defineFlow(
         <p>Your range: ${minRange.toFixed(6)} - ${maxRange.toFixed(6)}</p>
       `;
   
-      // Do not await this, let it run in the background
-      sendEmail({
-        to,
-        subject,
-        html,
-      });
+      try {
+        await sendEmail({
+          to,
+          subject,
+          html,
+        });
+      } catch (error) {
+          console.error("Failed to send in-range email:", error);
+          // Re-throw the error to be caught by Genkit's monitoring
+          throw error;
+      }
     }
 );
   
