@@ -18,6 +18,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+   experimental: {
+    outputFileTracingIncludes: {
+      '/**': [
+        path.join(process.cwd(), 'src', 'services', 'db.json'),
+        './src/services/db.json',
+      ],
+    },
+  },
    async headers() {
     return [
       {
