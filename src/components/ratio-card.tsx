@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from "@/components/ui/switch";
 
-interface RatioCardProps {
+export interface RatioCardProps {
   ratio: number;
   direction: 'up' | 'down' | 'none';
   minRange: string;
@@ -26,7 +26,10 @@ interface RatioCardProps {
 const formatValue = (value: number) => {
     return Math.max(0, value).toFixed(6);
 };
-  
+const ratio = 0
+const minRange = "null"
+const maxRange = "null"
+
 const STEP = 0.000001;
 
 export default function RatioCard({
@@ -44,7 +47,7 @@ export default function RatioCard({
   onToggleNotifications,
 }: RatioCardProps) {
   const [displayRatio, setDisplayRatio] = useState('0.000000');
-
+  
   useEffect(() => {
     if (ratio !== undefined && ratio !== null) {
       setDisplayRatio(ratio.toFixed(6));

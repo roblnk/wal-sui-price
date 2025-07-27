@@ -30,7 +30,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { updateUserPreferences, getUserPreferences } from '@/services/db';
 
-
 export type PriceData = {
   price: number;
   direction: 'up' | 'down' | 'none';
@@ -82,7 +81,23 @@ export default function Home() {
     }
   }, [toast]);
 
+ const sendEmail = useCallback(async () => {
+    try {
+      const response = await fetch('/api/cron');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch prices');
+      }
+      
 
+    } catch (error) {
+       toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "An unknown error occurred while fetching prices.",
+          variant: "destructive",
+        });
+    }
+  }, [toast]);
 
   useEffect(() => {
     // This effect runs once on component mount on the client side.
@@ -122,10 +137,15 @@ export default function Home() {
 
     
     fetchPrices();
-    const interval = setInterval(fetchPrices, 1000);
+    const intervalFetchPrices = setInterval(fetchPrices, 1000);
+
+    sendEmail();
+    const intervalSendEmail = setInterval(sendEmail, 5000);
 
     return () => {
-      clearInterval(interval);
+      clearInterval(intervalFetchPrices);
+      clearInterval(intervalSendEmail);
+
     };
 
   }, [fetchPrices, toast]);
@@ -169,12 +189,7 @@ export default function Home() {
             // Don't show toast for every polling error, as it can be noisy
         }
     };
-
-    const notificationPollingInterval = setInterval(pollNotificationState, 5000); // Poll every 5 seconds
-
-    return () => {
-      clearInterval(notificationPollingInterval);
-    };
+    pollNotificationState();
   }, [lastNotifiedStateFrontend, notificationsEnabled, toast]); // Dependencies trigger re-check
 
 

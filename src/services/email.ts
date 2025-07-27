@@ -6,7 +6,7 @@ import nodemailer from 'nodemailer';
 const emailHost = process.env.EMAIL_HOST;
 const emailUser = process.env.EMAIL_USER;
 const emailPass = process.env.EMAIL_PASS;
-const emailPort = parseInt(process.env.EMAIL_PORT || '587', 10);
+const emailPort = process.env.EMAIL_PORT;
 const emailFrom = process.env.EMAIL_FROM || emailUser;
 
 let transporter: nodemailer.Transporter | null = null;
@@ -15,7 +15,7 @@ if (emailHost && emailUser && emailPass) {
     transporter = nodemailer.createTransport({
         host: emailHost,
         port: emailPort,
-        secure: emailPort === 465, // true for 465, false for other ports
+        secure: false, // true for 465, false for other ports
         auth: {
           user: emailUser,
           pass: emailPass,

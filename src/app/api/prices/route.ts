@@ -10,7 +10,7 @@ const BybitTickerSchema = z.object({
     }),
 });
 
-async function fetchPrice(url: string, tokenName:string): Promise<number> {
+export async function fetchPrice(url: string, tokenName:string): Promise<number> {
     try {
         const response = await fetch(url, { 
             cache: 'no-store',

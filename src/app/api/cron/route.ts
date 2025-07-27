@@ -2,43 +2,9 @@
 'use server';
 
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
 import { readUserPreferences, updateUserPreferences } from '@/services/db';
-import { sendInRangeEmail, sendOutOfRangeEmail } from '@/ai/flows/send-email-flow';
-
-const BybitTickerSchema = z.object({
-    result: z.object({
-        list: z.array(z.object({
-            lastPrice: z.string(),
-        })),
-    }),
-});
-
-async function fetchPrice(url: string, tokenName: string): Promise<number> {
-    const response = await fetch(url, {
-        cache: 'no-store',
-        headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive'
-        }
-    });
-
-    if (!response.ok) {
-        throw new Error(`API Error: Failed to fetch price for ${tokenName} - ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const parsedData = BybitTickerSchema.safeParse(data);
-
-    if (!parsedData.success || parsedData.data.result.list.length === 0) {
-        throw new Error(`API Error: Price for ${tokenName} not found in response.`);
-    }
-
-    return parseFloat(parsedData.data.result.list[0].lastPrice);
-}
+import { sendNotiEmail } from '@/ai/flows/send-email-flow';
+import { fetchPrice } from '@/app/api/prices/route';
 
 export async function GET() {
     console.log('Cron job started...');
@@ -50,18 +16,15 @@ export async function GET() {
             console.log(message);
             return NextResponse.json({ success: true, message });
         }
+        const walUrl = "https://api.bybit.com/v5/market/tickers?category=spot&symbol=WALUSDT";
+        const suiUrl = "https://api.bybit.com/v5/market/tickers?category=spot&symbol=SUIUSDT";
+
         
-        const walUrl = process.env.NEXT_PUBLIC_BYBIT_WAL_API_URL;
-        const suiUrl = process.env.NEXT_PUBLIC_BYBIT_SUI_API_URL;
-
-        if (!walUrl || !suiUrl) {
-            throw new Error('API URLs are not defined in environment variables.');
-        }
-
         const [walPrice, suiPrice] = await Promise.all([
             fetchPrice(walUrl, 'WAL'),
             fetchPrice(suiUrl, 'SUI'),
         ]);
+        
 
         if (walPrice > 0 && suiPrice > 0) {
             const currentRatio = walPrice / suiPrice;
@@ -78,7 +41,7 @@ export async function GET() {
             
             if (currentState !== prefs.lastNotifiedState) {
                 console.log(`State changed to ${currentState}. Sending notification.`);
-                const emailToSend = isOutOfRange ? sendOutOfRangeEmail : sendInRangeEmail;
+                const emailToSend = sendNotiEmail;
                 try {
                     await emailToSend({
                         to: prefs.email,
