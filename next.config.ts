@@ -18,11 +18,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  outputFileTracingIncludes: {
-    '/**': [
-      './src/services/db.json',
-    ],
-  },
    async headers() {
     return [
       {
