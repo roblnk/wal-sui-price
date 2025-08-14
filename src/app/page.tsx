@@ -361,8 +361,8 @@ export default function Home() {
   useEffect(() => {
     if (walPrice.price > 0 && suiPrice.price > 0) {
       const newRatio = walPrice.price / suiPrice.price;
-      setLastRatio(newRatio);
-      setRatio(ratio);
+      setLastRatio(ratio);
+      setRatio(newRatio);
     }
   }, [walPrice, suiPrice, ratio]);
 
