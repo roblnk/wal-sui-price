@@ -64,12 +64,12 @@ export default function Home() {
       
       setWalPrice(prev => ({
         price: data.walPrice,
-        direction: data.walPrice > prev.price ? 'up' : 'down'
+        direction: data.walPrice >= prev.price ? 'up' : 'down'
       }));
 
       setSuiPrice(prev => ({
         price: data.suiPrice,
-        direction: data.suiPrice > prev.price ? 'up' : 'down'
+        direction: data.suiPrice >= prev.price ? 'up' : 'down'
       }));
 
     } catch (error) {
@@ -367,7 +367,7 @@ export default function Home() {
   }, [walPrice, suiPrice, ratio]);
 
 
-  const ratioDirection = lastRatio ? (ratio > lastRatio ? 'up' : 'down') : 'none';
+  const ratioDirection = lastRatio ? (ratio <= lastRatio ? 'up' : 'down') : 'none';
 
 
   return (
