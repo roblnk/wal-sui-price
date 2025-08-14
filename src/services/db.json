@@ -1,7 +1,7 @@
 {
   "email": "vunguyentrungkhang@gmail.com",
-  "minRange": "0.11525",
+  "minRange": "0.1147",
   "maxRange": "0.116496",
-  "notificationsEnabled": false,
-  "lastNotifiedState": null
+  "notificationsEnabled": true,
+  "lastNotifiedState": "out-of-range"
 }
