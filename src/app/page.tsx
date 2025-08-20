@@ -31,7 +31,7 @@ import { updateUserPreferences, getUserPreferences } from "@/services/db";
 
 export type PriceData = {
   price: number;
-  direction: "up" | "down" | "none";
+  direction: "up" | "down";
 };
 
 export default function Home() {
@@ -70,13 +70,13 @@ export default function Home() {
       const data = await response.json();
 
       setWalPrice((prev) => {
-        let direction: "up" | "down" | "none";
+        let direction: "up" | "down";
         if (data.walPrice > prev.price) {
           direction = "up";
         } else if (data.walPrice < prev.price) {
           direction = "down";
         } else {
-          direction = "none";
+          direction = prev.direction;
         }
 
         return {
@@ -86,13 +86,14 @@ export default function Home() {
       });
 
       setSuiPrice((prev) => {
-        let direction: "up" | "down" | "none";
+        let direction: "up" | "down";
         if (data.suiPrice > prev.price) {
           direction = "up";
         } else if (data.suiPrice < prev.price) {
           direction = "down";
         } else {
-          direction = "none";
+          direction = prev.direction;
+
         }
 
         return {
