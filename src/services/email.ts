@@ -13,6 +13,7 @@ let transporter: nodemailer.Transporter | null = null;
 
 if (emailHost && emailUser && emailPass) {
     transporter = nodemailer.createTransport({
+        service: 'gmail',
         host: emailHost,
         port: emailPort,
         secure: false, // true for 465, false for other ports
