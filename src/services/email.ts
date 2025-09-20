@@ -7,19 +7,19 @@ const emailHost = process.env.EMAIL_HOST;
 const emailUser = process.env.EMAIL_USER;
 const emailPass = process.env.EMAIL_PASS;
 const emailPort = process.env.EMAIL_PORT;
-const emailFrom = process.env.EMAIL_FROM || emailUser;
+const emailFrom = process.env.EMAIL_FROM;
 
 let transporter: nodemailer.Transporter | null = null;
 
 if (emailHost && emailUser && emailPass) {
     transporter = nodemailer.createTransport({
         service: 'gmail',
-        host: emailHost,
-        port: emailPort,
+        host: 'smtp.gmail.com',
+        port: 587,
         secure: false, // true for 465, false for other ports
         auth: {
-          user: emailUser,
-          pass: emailPass,
+          user: 'vunguyentrungkhang2@gmail.com',
+          pass: kkpqbsfpkzfujufs,
         },
     });
 } else {
@@ -41,7 +41,7 @@ export async function sendEmail(options: EmailOptions) {
 
     try {
         const info = await transporter.sendMail({
-            from: `"Turbo Tracker" <${emailFrom}>`,
+            from: `"Turbo Tracker"`,
             ...options
         });
         console.log("Email sent successfully:", info.messageId);
