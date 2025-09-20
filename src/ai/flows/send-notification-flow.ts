@@ -45,7 +45,7 @@ const sendNotificationFlow = ai.defineFlow(
     const message = `${emoji}
 *${newState.toUpperCase()}*: ${minRange.toFixed(6)} - ${maxRange.toFixed(6)}
 Current range: ${ratio.toFixed(6).toUpperCase()}
-[View Details](https://wal-sui-price.vercel.app/)
+[View Details](https://wal-sui-price.onrender.com/)
     `;
 
     try {
