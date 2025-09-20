@@ -19,7 +19,7 @@ if (emailHost && emailUser && emailPass) {
         secure: false, // true for 465, false for other ports
         auth: {
           user: 'vunguyentrungkhang2@gmail.com',
-          pass: kkpqbsfpkzfujufs,
+          pass: 'kkpqbsfpkzfujufs'
         },
     });
 } else {
@@ -41,7 +41,7 @@ export async function sendEmail(options: EmailOptions) {
 
     try {
         const info = await transporter.sendMail({
-            from: `"Turbo Tracker"`,
+            from: "roblnk",
             ...options
         });
         console.log("Email sent successfully:", info.messageId);

@@ -38,7 +38,7 @@ const sendEmailFlow = ai.defineFlow(
     const subject = `${newState.toUpperCase()}: ${minRange.toFixed(6)} - ${maxRange.toFixed(6)}`;
     const html = `
       <p>Current range: ${ratio.toFixed(6).toUpperCase()}</p>
-      <p>https://wal-sui-price.onrender.com/</p>
+      <p><br>https://wal-sui-price.onrender.com/</p>
     `;
 
     try {
