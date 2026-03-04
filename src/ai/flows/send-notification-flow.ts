@@ -8,7 +8,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { sendTelegramMessage } from '@/services/telegram';
+import { sendTelegramMessagev2 } from '@/services/telegram';
 import { z } from 'zod';
 
 const NotificationFlowInputSchema = z.object({
@@ -42,14 +42,14 @@ const sendNotificationFlow = ai.defineFlow(
       emoji = '🟨';
     }
 
-    const message = `${emoji}
-*${newState.toUpperCase()}*: ${minRange.toFixed(6)} - ${maxRange.toFixed(6)}
+    const message = `${emoji}*${newState.toUpperCase()}*: 
+${minRange.toFixed(6)} - ${maxRange.toFixed(6)}
 Current range: ${ratio.toFixed(6).toUpperCase()}
 [View Details](https://wal-sui-price.onrender.com/)
     `;
 
     try {
-      await sendTelegramMessage(message);
+      await sendTelegramMessagev2(message);
     } catch (error) {
         console.error("Failed to send notification:", error);
         // Re-throw the error to be caught by Genkit's monitoring
