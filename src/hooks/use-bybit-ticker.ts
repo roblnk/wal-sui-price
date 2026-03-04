@@ -25,7 +25,6 @@ export function useBybitTicker(symbols: string[] = ['WALUSDT', 'SUIUSDT']) {
       let pingInterval: NodeJS.Timeout | null = null;
 
       ws.onopen = () => {
-        console.log('Bybit WS connected');
         // Subscribe
         const subscribeMsg = {
           op: 'subscribe',
@@ -33,12 +32,10 @@ export function useBybitTicker(symbols: string[] = ['WALUSDT', 'SUIUSDT']) {
         };
 
         ws.send(JSON.stringify(subscribeMsg));
-        console.log('[Bybit WS] Sent subscribe:', subscribeMsg);
         // Ping mỗi 20s để giữ kết nối (Bybit yêu cầu)
         pingInterval = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ op: 'ping' }));
-            console.log('[Bybit WS] Sent ping');
           }
         }, 20000);
       };
@@ -46,23 +43,9 @@ export function useBybitTicker(symbols: string[] = ['WALUSDT', 'SUIUSDT']) {
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          console.log('[Bybit WS] Received raw message:', msg);
 
-          // Handle subscribe response
-          if (msg.success !== undefined) {
-            if (msg.success) {
-              console.log('[Bybit WS] Subscribe success for args:', msg.args || msg.arg);
-            } else {
-              console.error('[Bybit WS] Subscribe failed:', msg.ret_msg || msg);
-            }
-            return;
-          }
 
-          // Heartbeat/pong
-          if (msg.ret_msg === 'pong' || msg.op === 'ping') {
-            console.log('[Bybit WS] Heartbeat received');
-            return;
-          }
+        
 
           // Ticker data (spot luôn snapshot, data là object)
           if (msg.topic?.startsWith('tickers.')) {
@@ -77,24 +60,19 @@ export function useBybitTicker(symbols: string[] = ['WALUSDT', 'SUIUSDT']) {
                   lastPrice: data.lastPrice,
                 },
               }));
-              console.log(`[Bybit WS] Updated ${data.symbol}: lastPrice = ${data.lastPrice}`);
 
             } else {
-              console.warn('[Bybit WS] Invalid ticker data format:', data);
             }
           }
         } catch (err) {
-          console.error('[Bybit WS] Parse message error:', err);
         }
       };
 
       ws.onerror = (err) => {
-        console.error('Bybit WS error:', err);
         ws.close();
       };
 
       ws.onclose = () => {
-        console.log('Bybit WS closed → reconnecting in 5s...');
         reconnectTimeout.current = setTimeout(connect, 5000);
       };
 
@@ -104,18 +82,9 @@ export function useBybitTicker(symbols: string[] = ['WALUSDT', 'SUIUSDT']) {
     connect();
 
    return () => {
-      console.log('[Bybit WS] Cleanup');
       if (wsRef.current) wsRef.current.close();
       if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
     };
   }, [symbols]);
- useEffect(() => {
-  if (prices['WALUSDT']) {
-    console.log(`WALUSDT Price: ${prices['WALUSDT'].lastPrice}`);
-  }
-  if (prices['SUIUSDT']) {
-    console.log(`SUIUSDT Price: ${prices['SUIUSDT'].lastPrice}`);
-  }
-}, [prices]);
   return prices;
 }
