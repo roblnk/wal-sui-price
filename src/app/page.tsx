@@ -380,7 +380,7 @@ export default function Home() {
                 <PriceCard
                   tokenName="Sui"
                   tokenSymbol="SUI"
-                  price={suiPrice.price}
+                  price={suiPrice.price || 0}
                   direction={suiPrice.direction}
                 />
               </div>
