@@ -4,8 +4,15 @@
 import { NextResponse } from 'next/server';
 import { readUserPreferences, updateUserPreferences } from '@/services/db';
 import { sendNotification } from '@/ai/flows/send-notification-flow';
-import { fetchPrice } from '@/app/api/prices/route';
+import { z } from 'zod';
 
+const BybitTickerSchema = z.object({
+    result: z.object({
+        list: z.array(z.object({
+            lastPrice: z.string(),
+        })),
+    }),
+});
 export async function GET() {
     console.log('Cron job started...');
 
@@ -24,20 +31,22 @@ export async function GET() {
             console.log(message);
             return NextResponse.json({ success: true, message });
         }
-        const walUrl = "https://api.bybit.com/v5/market/tickers?category=spot&symbol=WALUSDT";
-        const suiUrl = "https://api.bybit.com/v5/market/tickers?category=spot&symbol=SUIUSDT";
 
         
-        const [walPrice, suiPrice] = await Promise.all([
+        const walUrl = process.env.NEXT_PUBLIC_BYBIT_WAL_API_URL;
+        const suiUrl = process.env.NEXT_PUBLIC_BYBIT_SUI_API_URL;
+
+        
+        const [wal, sui] = await Promise.all([
             fetchPrice(walUrl, 'WAL'),
             fetchPrice(suiUrl, 'SUI'),
         ]);
-        
 
-        if (walPrice > 0 && suiPrice > 0) {
-            const currentRatio = walPrice / suiPrice;
-            const min = parseFloat(prefs.minRange);
-            const max = parseFloat(prefs.maxRange);
+
+        if (wal > 0 && sui > 0) {
+            const currentRatio = wal / sui;
+            const min = Number.parseFloat(prefs.minRange);
+            const max = Number.parseFloat(prefs.maxRange);
 
             if (min === 0 && max === 0) {
                 console.log('Cron job check: Range not set, skipping notification.');
@@ -74,4 +83,46 @@ export async function GET() {
     }
     
     return NextResponse.json({ success: true, message: 'Cron job finished.' });
+}
+
+export async function fetchPrice(url: string, tokenName:string): Promise<number> {
+    try {
+        const response = await fetch(url, { 
+            cache: 'no-store',
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive'
+            }
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error(`Bybit API Error for ${tokenName}: ${response.status} ${response.statusText}`, {
+                errorBody,
+                headers: response.headers
+            });
+            throw new Error(`Failed to fetch price for ${tokenName} from Bybit: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const parsedData = BybitTickerSchema.safeParse(data);
+
+        if (parsedData.success && parsedData.data.result.list.length > 0) {
+            return parseFloat(parsedData.data.result.list[0].lastPrice);
+        }
+
+        console.error(`Error parsing Bybit response for ${tokenName}`, {
+            parsingError: parsedData.success ? 'List is empty' : parsedData.error,
+            responseData: data
+        });
+
+        throw new Error(`${tokenName} price not found in Bybit response`);
+    } catch (error) {
+        console.error(`Exception in fetchPrice for ${tokenName}:`, error);
+        // Re-throw the error to be caught by the GET handler
+        throw error;
+    }
 }

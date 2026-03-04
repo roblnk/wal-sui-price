@@ -1,11 +1,14 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { TrendingUp, Sun, Moon } from 'lucide-react';
-import PriceCard from '@/components/price-card';
-import RatioCard from '@/components/ratio-card';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { useBybitTicker } from "@/hooks/use-bybit-ticker";
+import { useState, useEffect, useCallback } from "react";
+import { TrendingUp, Sun, Moon } from "lucide-react";
+import PriceCard from "@/components/price-card";
+import RatioCard from "@/components/ratio-card";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { NextResponse } from "next/server";
+import { sendNotification } from "@/ai/flows/send-notification-flow";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,58 +18,66 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { updateUserPreferences, getUserPreferences } from '@/services/db';
+} from "@/components/ui/alert-dialog";
+import {
+  updateUserPreferences,
+  getUserPreferences,
+  readUserPreferences,
+} from "@/services/db";
 
 export type PriceData = {
   price: number;
-  direction: 'up' | 'down';
+  direction: "up" | "down";
 };
 
 export default function Home() {
-  const [walPrice, setWalPrice] = useState<PriceData>({ price: 0, direction: 'none' });
-  const [suiPrice, setSuiPrice] = useState<PriceData>({ price: 0, direction: 'none' });
+  const [walPrice, setWalPrice] = useState<PriceData>({
+    price: 0,
+    direction: "none",
+  });
+  const [suiPrice, setSuiPrice] = useState<PriceData>({
+    price: 0,
+    direction: "none",
+  });
   const [ratio, setRatio] = useState<number>(0);
   const [lastRatio, setLastRatio] = useState<number | null>(0);
-  const [theme, setTheme] = useState('light');
-  const [minRange, setMinRange] = useState('0.000000');
-  const [maxRange, setMaxRange] = useState('0.000000');
-  const [activeMinRange, setActiveMinRange] = useState('0.000000');
-  const [activeMaxRange, setActiveMaxRange] = useState('0.000000');
+  const [theme, setTheme] = useState("light");
+  const [minRange, setMinRange] = useState("0.000000");
+  const [maxRange, setMaxRange] = useState("0.000000");
+  const [activeMinRange, setActiveMinRange] = useState("0.000000");
+  const [activeMaxRange, setActiveMaxRange] = useState("0.000000");
   const [showEraseAlert, setShowEraseAlert] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [lastNotifiedStateFrontend, setLastNotifiedStateFrontend] = useState<string | null>(null);
+  const [lastNotifiedStateFrontend, setLastNotifiedStateFrontend] = useState<
+    string | null
+  >(null);
 
   const { toast } = useToast();
 
-  const fetchPrices = useCallback(async () => {
-    try {
-      const response = await fetch('/api/prices');
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch prices');
-      }
-      const data = await response.json();
+  const prices = useBybitTicker(["WALUSDT", "SUIUSDT"]);
+  useEffect(() => {
+    // Lấy giá trị trực tiếp (có thể undefined nếu chưa nhận data)
+    const walTicker = prices["WALUSDT"];
+    console.log(walTicker);
+    const suiTicker = prices["SUIUSDT"];
 
-      setWalPrice((prev) => ({
-        price: data.walPrice,
-        direction: data.walPrice > prev.price ? 'up' : data.walPrice < prev.price ? 'down' : prev.direction,
-      }));
+    const wal = Number.parseFloat(walTicker?.lastPrice);
+    const sui = Number.parseFloat(suiTicker?.lastPrice);
 
-      setSuiPrice((prev) => ({
-        price: data.suiPrice,
-        direction: data.suiPrice > prev.price ? 'up' : data.suiPrice < prev.price ? 'down' : prev.direction,
-      }));
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'An unknown error occurred while fetching prices.',
-        variant: 'destructive',
-      });
-    }
-  }, [toast]);
+    setWalPrice((prev) => ({
+      price: wal,
+      direction:
+        wal > prev.price ? "up" : wal < prev.price ? "down" : prev.direction,
+    }));
+    setSuiPrice((prev) => ({
+      price: sui,
+      direction:
+        sui > prev.price ? "up" : sui < prev.price ? "down" : prev.direction,
+    }));
+  }, [prices]);
 
-   const sendNotifyTelegram = useCallback(async () => {
+
+ const sendNotifyTelegram = useCallback(async () => {
     try {
       const response = await fetch("/api/cron");
       if (!response.ok) {
@@ -85,11 +96,10 @@ export default function Home() {
     }
   }, [toast]);
 
-
   useEffect(() => {
-    const storedTheme = localStorage.getItem('theme') || 'dark';
+    const storedTheme = localStorage.getItem("theme") || "dark";
     setTheme(storedTheme);
-    document.documentElement.classList.toggle('dark', storedTheme === 'dark');
+    document.documentElement.classList.toggle("dark", storedTheme === "dark");
 
     async function loadUserPreferences() {
       try {
@@ -104,27 +114,24 @@ export default function Home() {
         }
       } catch (e) {
         toast({
-          title: 'Error',
-          description: 'Could not load saved notification settings.',
-          variant: 'destructive',
+          title: "Error",
+          description: "Could not load saved notification settings.",
+          variant: "destructive",
         });
       }
     }
     loadUserPreferences();
 
-    fetchPrices();
-    const intervalFetchPrices = setInterval(fetchPrices, 1000);
-
-
     sendNotifyTelegram();
+    
+    
     const intervalSendNotifyTelegram = setInterval(sendNotifyTelegram, 5000);
 
     return () => {
-      clearInterval(intervalFetchPrices);
       clearInterval(intervalSendNotifyTelegram);
 
     };
-  }, [fetchPrices, sendNotifyTelegram, toast]);
+  }, [ sendNotifyTelegram, toast]);
 
   useEffect(() => {
     const pollNotificationState = async () => {
@@ -132,16 +139,22 @@ export default function Home() {
         const prefs = await getUserPreferences();
 
         if (prefs.notificationsEnabled) {
-          if (prefs.lastNotifiedState && prefs.lastNotifiedState !== lastNotifiedStateFrontend) {
+          if (
+            prefs.lastNotifiedState &&
+            prefs.lastNotifiedState !== lastNotifiedStateFrontend
+          ) {
             const message =
-              prefs.lastNotifiedState === 'in-range'
-                ? 'The WAL/SUI ratio has moved back into your defined range.'
-                : 'The WAL/SUI ratio has moved out of your defined range.';
+              prefs.lastNotifiedState === "in-range"
+                ? "The WAL/SUI ratio has moved back into your defined range."
+                : "The WAL/SUI ratio has moved out of your defined range.";
 
             toast({
               title: `Ratio: ${prefs.lastNotifiedState.toUpperCase()}`,
               description: message,
-              variant: prefs.lastNotifiedState === 'in-range' ? 'success' : 'destructive',
+              variant:
+                prefs.lastNotifiedState === "in-range"
+                  ? "success"
+                  : "destructive",
             });
             setLastNotifiedStateFrontend(prefs.lastNotifiedState);
           }
@@ -154,17 +167,17 @@ export default function Home() {
           setNotificationsEnabled(prefs.notificationsEnabled || false);
         }
       } catch (error) {
-        console.error('Error polling for notification state:', error);
+        console.error("Error polling for notification state:", error);
       }
     };
     pollNotificationState();
   }, [lastNotifiedStateFrontend, notificationsEnabled, toast]);
 
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
+    const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.classList.toggle('dark', newTheme === 'dark');
+    localStorage.setItem("theme", newTheme);
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
   const handleUpdateRange = async () => {
@@ -173,9 +186,9 @@ export default function Home() {
 
     if (min >= max) {
       toast({
-        title: 'Error',
-        description: 'The max range must be greater than the min range.',
-        variant: 'destructive',
+        title: "Error",
+        description: "The max range must be greater than the min range.",
+        variant: "destructive",
       });
       return;
     }
@@ -192,21 +205,22 @@ export default function Home() {
       setNotificationsEnabled(false);
       setLastNotifiedStateFrontend(null);
       toast({
-        title: 'Success',
-        description: 'Notification range updated. Please re-enable notifications to apply changes.',
+        title: "Success",
+        description:
+          "Notification range updated. Please re-enable notifications to apply changes.",
       });
     } catch (e) {
       toast({
-        title: 'Error',
-        description: 'Failed to update notification range.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to update notification range.",
+        variant: "destructive",
       });
     }
   };
 
   const handleEraseRange = async () => {
-    const newMinRange = '0.000000';
-    const newMaxRange = '0.000000';
+    const newMinRange = "0.000000";
+    const newMaxRange = "0.000000";
     try {
       await updateUserPreferences({
         minRange: newMinRange,
@@ -222,15 +236,15 @@ export default function Home() {
       setLastNotifiedStateFrontend(null);
       setShowEraseAlert(false);
       toast({
-        title: 'Success',
-        description: 'Notification range has been erased.',
+        title: "Success",
+        description: "Notification range has been erased.",
       });
     } catch (e) {
       setShowEraseAlert(false);
       toast({
-        title: 'Error',
-        description: 'Failed to erase notification range.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to erase notification range.",
+        variant: "destructive",
       });
     }
   };
@@ -239,20 +253,20 @@ export default function Home() {
     const newIsEnabled = !notificationsEnabled;
 
     if (newIsEnabled) {
-      const min = parseFloat(minRange);
-      const max = parseFloat(maxRange);
+      const min = Number.parseFloat(minRange);
+      const max = Number.parseFloat(maxRange);
       if (min === 0 && max === 0) {
         toast({
-          title: 'Error',
-          description: 'Please set a notification range first.',
-          variant: 'destructive',
+          title: "Error",
+          description: "Please set a notification range first.",
+          variant: "destructive",
         });
         return;
       }
 
       try {
         const isOutOfRange = ratio > 0 && (ratio < min || ratio > max);
-        const initialState = isOutOfRange ? 'out-of-range' : 'in-range';
+        const initialState = isOutOfRange ? "out-of-range" : "in-range";
 
         await updateUserPreferences({
           notificationsEnabled: true,
@@ -262,14 +276,14 @@ export default function Home() {
         setLastNotifiedStateFrontend(initialState);
 
         toast({
-          title: 'Notifications Enabled',
+          title: "Notifications Enabled",
           description: `Monitoring started. Initial state is ${initialState}.`,
         });
       } catch (e) {
         toast({
-          title: 'Error',
-          description: 'Failed to enable notifications.',
-          variant: 'destructive',
+          title: "Error",
+          description: "Failed to enable notifications.",
+          variant: "destructive",
         });
       }
     } else {
@@ -281,14 +295,14 @@ export default function Home() {
         setNotificationsEnabled(false);
         setLastNotifiedStateFrontend(null);
         toast({
-          title: 'Success',
-          description: 'Notifications disabled.',
+          title: "Success",
+          description: "Notifications disabled.",
         });
       } catch (e) {
         toast({
-          title: 'Error',
-          description: 'Failed to update notification settings.',
-          variant: 'destructive',
+          title: "Error",
+          description: "Failed to update notification settings.",
+          variant: "destructive",
         });
       }
     }
@@ -302,39 +316,45 @@ export default function Home() {
     }
   }, [walPrice, suiPrice, ratio]);
 
-  const ratioDirection = lastRatio ? (ratio <= lastRatio ? 'up' : 'down') : 'none';
+  const ratioDirection = lastRatio
+    ? ratio <= lastRatio
+      ? "up"
+      : "down"
+    : "none";
 
   return (
-    <div className='flex min-h-screen w-full flex-col'>
-      <header className='sticky top-0 z-10 flex h-auto flex-wrap items-center gap-4 border-b bg-background/80 px-4 py-4 backdrop-blur-sm md:h-16 md:flex-nowrap md:px-6'>
-        <div className='flex w-full items-center justify-between md:w-auto'>
-          <div className='flex items-center gap-2'>
-            <TrendingUp className='h-6 w-6 text-primary' />
-            <h1 className='text-2xl font-bold tracking-tight'>Turbo Tracker</h1>
+    <div className="flex min-h-screen w-full flex-col">
+      <header className="sticky top-0 z-10 flex h-auto flex-wrap items-center gap-4 border-b bg-background/80 px-4 py-4 backdrop-blur-sm md:h-16 md:flex-nowrap md:px-6">
+        <div className="flex w-full items-center justify-between md:w-auto">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold tracking-tight">Turbo Tracker</h1>
           </div>
-          <div className='flex items-center gap-2 md:hidden'>
-            <Button variant='ghost' size='icon' onClick={toggleTheme}>
-              <Sun className='h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0' />
-              <Moon className='absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100' />
-              <span className='sr-only'>Toggle theme</span>
+          <div className="flex items-center gap-2 md:hidden">
+            <Button variant="ghost" size="icon" onClick={toggleTheme}>
+              <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <span className="sr-only">Toggle theme</span>
             </Button>
           </div>
         </div>
 
-        <div className='ml-auto hidden md:flex items-center gap-2'>
-          <Button variant='ghost' size='icon' onClick={toggleTheme}>
-            <Sun className='h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0' />
-            <Moon className='absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100' />
-            <span className='sr-only'>Toggle theme</span>
+        <div className="ml-auto hidden md:flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={toggleTheme}>
+            <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
           </Button>
         </div>
       </header>
-      <main className='flex-1 p-4 md:p-8 lg:p-10'>
-        <div className='mx-auto max-w-7xl'>
-          <section className='mb-8'>
-            <h2 className='text-xl font-semibold text-foreground/80 mb-4'>Live Prices</h2>
-            <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-              <div className='lg:col-span-2'>
+      <main className="flex-1 p-4 md:p-8 lg:p-10">
+        <div className="mx-auto max-w-7xl">
+          <section className="mb-8">
+            <h2 className="text-xl font-semibold text-foreground/80 mb-4">
+              Live Prices
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
                 <RatioCard
                   ratio={ratio}
                   direction={ratioDirection}
@@ -350,28 +370,43 @@ export default function Home() {
                   onToggleNotifications={handleToggleNotifications}
                 />
               </div>
-              <div className='flex flex-col gap-6'>
-                <PriceCard tokenName='Walrus' tokenSymbol='WAL' price={walPrice.price} direction={walPrice.direction} />
-                <PriceCard tokenName='Sui' tokenSymbol='SUI' price={suiPrice.price} direction={suiPrice.direction} />
+              <div className="flex flex-col gap-6">
+                <PriceCard
+                  tokenName="Walrus"
+                  tokenSymbol="WAL"
+                  price={walPrice.price || 0}
+                  direction={walPrice.direction}
+                />
+                <PriceCard
+                  tokenName="Sui"
+                  tokenSymbol="SUI"
+                  price={suiPrice.price}
+                  direction={suiPrice.direction}
+                />
               </div>
             </div>
           </section>
         </div>
       </main>
-      <footer className='border-t py-4 px-4 md:px-6'>
-        <p className='text-center text-sm text-muted-foreground'>Prices are fetched from live data sources.</p>
+      <footer className="border-t py-4 px-4 md:px-6">
+        <p className="text-center text-sm text-muted-foreground">
+          Prices are fetched from live data sources.
+        </p>
       </footer>
       <AlertDialog open={showEraseAlert} onOpenChange={setShowEraseAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action will permanently delete the current notification range. You cannot undo this action.
+              This action will permanently delete the current notification
+              range. You cannot undo this action.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleEraseRange}>Continue</AlertDialogAction>
+            <AlertDialogAction onClick={handleEraseRange}>
+              Continue
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
